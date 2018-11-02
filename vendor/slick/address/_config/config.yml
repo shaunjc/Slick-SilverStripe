@@ -1,0 +1,11 @@
+---
+Name: slickaddress
+---
+# Add Address support to Member.
+SilverStripe\Security\Member:
+    extensions:
+        - Slick\Address\Extensions\Member
+# Add IPStack API Key to Site Config
+SilverStripe\SiteConfig\SiteConfig:
+    extensions:
+        - Slick\Address\Extensions\SiteConfig

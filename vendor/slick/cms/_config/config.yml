@@ -1,0 +1,17 @@
+---
+Name: slickcms
+---
+# Add SVG Support
+SilverStripe\Assets\File:
+  app_categories:
+    image: 
+      - svg
+  allowed_extensions:
+    - svg
+SilverStripe\Assets\Image:
+  allowed_extensions:
+    - svg
+# Add Admin email to Site Config for Enquiries
+SilverStripe\SiteConfig\SiteConfig:
+  extensions:
+    - Slick\CMS\Extensions\SiteConfig

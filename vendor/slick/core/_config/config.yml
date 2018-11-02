@@ -1,0 +1,17 @@
+---
+Name: slickcore
+---
+#SilverStripe\Forms\FormRequestHandler:
+#  extensions:
+#    # Enhanced request error handler - loads an error page template rather than displaying just a plain text message.
+#    - Slick\Extensions\ErrorHandler
+#SilverStripe\Core\Injector\Injector:
+#  # Pass Error message to extended methods on httpError.
+#  SilverStripe\Forms\FormRequestHandler:
+#    class: Slick\Forms\FormRequestHandler
+#  # Minify HTML output - does not appear to be injectable by default.
+#  SilverStripe\Control\HTTPResponse:
+#    class: Slick\Control\MinifiedHTTPResponse
+#  # Minify HTML Templates - flush when enabled or disabled.
+#  SilverStripe\View\SSTemplateParser:
+#    class: Slick\View\MinifiedTemplateParser
