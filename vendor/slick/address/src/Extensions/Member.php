@@ -1,8 +1,7 @@
 <?php
 namespace Slick\Address\Extensions;
 
-use SilverStripe\ORM\DataExtension;
-
+use Slick\Extensions\DataExtension;
 use Slick\Address\Model\Address;
 
 class Member extends DataExtension

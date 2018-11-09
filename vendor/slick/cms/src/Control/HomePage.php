@@ -20,14 +20,10 @@ class HomePage extends Page
     
     // Database columns and relationships.
     private static $db = [];
-    private static $has_one = [
-        'BannerVideo' => File::class,
-    ];
     private static $has_many = [
         'BannerImages' => Banner::class,
     ];
     private static $owns = [
-        'BannerVideo',
         'BannerImages',
     ];
     
@@ -35,8 +31,7 @@ class HomePage extends Page
     {
         $fields = parent::getCMSFields();
         
-        $fields->addFieldsToTab('Root.Main', new FieldList(array(
-//            UploadField::create('BannerVideo'),
+        $fields->addFieldsToTab('Root.Main', [
             GridField::create(
                 'BannerImages',
                 'Banner Images',
@@ -44,16 +39,17 @@ class HomePage extends Page
                 GridFieldConfig_RecordEditor::create()
                     ->addComponent(new GridFieldSortableRows('SortOrder'))
             ),
-        )), 'BannerImage');
+        ], 'BannerImage');
         
-        $fields->addFieldsToTab('Root.Main', new FieldList(array(
+        $fields->addFieldsToTab('Root.Main', [
             GridField::create(
                 'Layouts',
                 'Layout Sections',
                 $this->Layouts(),
                 $layout_config = GridFieldConfig_RecordEditor::create()
+                    ->addComponent(new GridFieldSortableRows('SortOrder'))
             ),
-        )), 'Metadata');
+        ], 'Metadata');
         
         $layout_config->getComponentByType(GridFieldDataColumns::class)
             ->setDisplayFields(array(

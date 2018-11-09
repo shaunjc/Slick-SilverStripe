@@ -2,55 +2,64 @@
 
 namespace Slick\CMS\View;
 
+// SilverStripe Framework and CMS classes.
 use SilverStripe\ORM\DataObject;
 use SilverStripe\Assets\File;
 use SilverStripe\Assets\Image;
-use SilverStripe\Forms\GridField\GridField;
-use SilverStripe\Forms\GridField\GridFieldConfig_RecordEditor;
 use SilverStripe\Versioned\Versioned;
 
+// Slick module classes.
 use Slick\CMS\Control\Page;
 use Slick\CMS\View\Icon;
+use Slick\Extensions\Sortable;
 
+// Third Party module classes.
 use UndefinedOffset\SortableGridField\Forms\GridFieldSortableRows;
 
 class Layout extends DataObject
 {
-    // Table names and extensions.
-    private static $table_name = 'Slick_Page_Layout';
+    // Extensions.
     private static $extensions = [
+        Sortable::class,
         Versioned::class,
     ];
     
-    // Database columns and relationships.
+    // Database tables and columns.
+    private static $table_name = 'Slick_Page_Layout';
     private static $db = [
         'Name'         => 'Varchar(255)',
         'Content'      => 'HTMLText',
         'Template'     => 'Enum("Content,Content+Image,Image+Content,Icons,Listings,Services","Content")',
         'ImageStyle'   => 'Enum("Half,Full","Full")',
         'ContentWidth' => 'Enum("Grid,Wide,Full","Grid")',
-        'SortOrder'          => 'Int',
     ];
+    
+    // Relationships.
     private static $has_one = [
-        'Page'       => Page::class,
-        'Image'      => Image::class,
         'BleedImage' => File::class,
+        'Image'      => Image::class,
+        'Page'       => Page::class,
     ];
     private static $has_many = [
         'Icons'     => Icon::class,
     ];
     private static $owns = [
-        'Image',
-        'Icons',
         'BleedImage',
+        'Icons',
+        'Image',
     ];
     private static $owned_by = [
         'Page',
     ];
+    private static $cascade_deletes = [
+        'Icons',
+    ];
     
-    // Other UI references.
-    private static $default_sort = 'SortOrder ASC';
-    private static $casting      = [
+    // UI config.
+    private static $default_sort  = 'SortOrder ASC';
+    private static $singular_name = 'Page Layout';
+    private static $plural_name   = 'Page Layouts';
+    private static $casting = [
         'EmbedOnly' => 'HTMLText',
     ];
     
@@ -62,27 +71,13 @@ class Layout extends DataObject
     public function getCMSFields() {
         $fields = parent::getCMSFields();
         
-        $icons = $fields->fieldByName('Root.Icons.Icons');
-        if ($icons && $icons instanceof GridField) {
-            $icons->setConfig(
-                GridFieldConfig_RecordEditor::create()
-                    ->addComponent(
-                        new GridFieldSortableRows('SortOrder')
-                    )
-            );
-        }
+        $fields->removeByName([
+            'PageID',
+            'LinkTracking',
+            'FileTracking',
+        ]);
         
         return $fields;
-    }
-    
-    public function onBeforePublish()
-    {
-        if (($image = $this->Image()) && $image->exists()) {
-            $image->publishRecursive();
-        }
-        if (($image = $this->BleedImage()) && $image->exists()) {
-            $image->publishRecursive();
-        }
     }
     
     /**
@@ -153,58 +148,47 @@ class Layout extends DataObject
     }
     
     /**
-     * Template Function: Show Call To Action
-     * 
-     * @return boolean True if both call to action text and
-     * linkhave been saved. False otherwise.
+     * Display a title in the CMS based on the name or content.
+     * @return string
      */
-    public function HasCallToAction()
-    {
-        return $this->CallToActionText || $this->CallToActionLink;
-    }
-    
-    public function IsFullWidth()
-    {
-        return in_array($this->Template, array('Embed'));
-    }
-    
-    public function ShowWind()
-    {
-        return $this->BottomWindStyle && $this->BottomWindStyle !== 'None';
-    }
-    
-    public function EmbedOnly()
-    {
-        if (preg_match('#(?:[htpsf]+:)?//(?:[a-z0-9_][a-z0-9_-]*[a-z0-9_]\.?|[a-z0-9_]+\.?)+(?:/[^\s\t\r\n\'"/\?]+)*(?:\?(?:[^\s\t\r\n\'"]*)){0,1}#i', $this->Content, $content)) {
-            while (is_array($content)) {
-                $content = reset($content);
-            }
-            return sprintf( '<iframe src="%s"></iframe>', $content );
-        }
-    }
-    
     public function getTitle()
     {
         return $this->Name ?: $this->dbObject('Content')->FirstSentence() ?: $this->Template;
     }
     
+    /**
+     * Display a title in the CMS based on the name.
+     * @return type
+     */
     public function Title()
     {
         return $this->Name;
     }
     
+    /**
+     * Helper function to determine if content shows before the layout rows.
+     * @return boolean
+     */
     public function AdditionalContent()
     {
         return in_array($this->Template, ['Content','Icons','Listings','Services'])
             || ! $this->HasImage();
     }
     
+    /**
+     * Helper function to determine if the image is a background image or not.
+     * @return Image|boolean
+     */
     public function BackgroundImage()
     {
         return in_array($this->Template, ['Content','Icons','Listings','Services'])
             ? $this->Image() : false;
     }
     
+    /**
+     * Helper function to determine if the image appears before/after content.
+     * @return boolean
+     */
     public function ImageFirst()
     {
         return in_array($this->Template, ['Image+Content']);

@@ -5,7 +5,6 @@ namespace Slick\CMS\Extensions;
 use SilverStripe\Forms\EmailField;
 use SilverStripe\Forms\FieldList;
 use SilverStripe\Forms\GridField\GridField;
-use SilverStripe\Forms\GridField\GridFieldConfig_RecordEditor;
 use SilverStripe\Forms\TextField;
 
 use Slick\CMS\View\SocialLink;
@@ -30,15 +29,16 @@ class SiteConfig extends DataExtension
         
         $fields->addFieldsToTab('Root.Main', [
             EmailField::create('AdminNotificationEmail'),
-            TextField::create('Copyright')->setAttribute('placeholder', $this->DefaultCopyright()),
+            TextField::create('Copyright')
+                ->setAttribute('placeholder', $this->DefaultCopyright()),
         ]);
         
-        $fields->addFieldToTab('Root.Social', GridField::create(
-            'SocialLinks',
-            'Social Links',
-            $this->owner->SocialLinks()
-        )->setConfig(GridFieldConfig_RecordEditor::create()
-            ->addComponent(new GridFieldSortableRows('SortOrder'))));
+        $social = GridField::create('SocialLinks', 'Social Links', $this->owner->SocialLinks());
+        $social->getconfig()->addComponent(new GridFieldSortableRows('SortOrder'));
+        
+        $fields->addFieldsToTab('Root.Social', [
+            $social,
+        ]);
         
         return $fields;
     }

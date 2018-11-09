@@ -5,7 +5,13 @@ Name: slickcore
 #  extensions:
 #    # Enhanced request error handler - loads an error page template rather than displaying just a plain text message.
 #    - Slick\Extensions\ErrorHandler
-#SilverStripe\Core\Injector\Injector:
+SilverStripe\Core\Injector\Injector:
+  # Automatically convert all $has_many scaffolder form fields to use GridFieldConfig_RecordEditor.
+  SilverStripe\Forms\FormScaffolder:
+    class: Slick\Forms\FormScaffolder
+  # Use a TreeDropdownField for has_one relationships where the class uses the Hierarchy extension.
+  ForeignKey:
+    class: Slick\ORM\FieldType\HierarchicalForeignKey
 #  # Pass Error message to extended methods on httpError.
 #  SilverStripe\Forms\FormRequestHandler:
 #    class: Slick\Forms\FormRequestHandler

@@ -1,6 +1,7 @@
 <?php
 namespace Slick\Address\Model;
 
+use SilverStripe\Control\Controller;
 use SilverStripe\Core\Convert;
 use SilverStripe\ORM\DataObject;
 use SilverStripe\Security\Member;
@@ -14,16 +15,18 @@ use SilverStripe\Versioned\Versioned;
 
 use Slick\Address\Code\States;
 use Slick\Address\Model\Locality;
+use Slick\Extensions\Sortable;
 
 class Address extends DataObject
 {
-    // Class constants.
+    // Class Constants.
     const GOOGLE_MAP_API_URL = 'https://maps.googleapis.com/maps/api/geocode/json';
     const IP_API_URL         = 'http://api.ipstack.com';
     
     // Table names and extensions.
     private static $table_name = 'Slick_Address';
     private static $extensions = [
+        Sortable::class,
         Versioned::class . '.versioned',
     ];
     
@@ -50,7 +53,6 @@ class Address extends DataObject
         'Type'        => 'Enum("billing,physical,postal,pickup,delivery,query,session","billing")',
         'AddressType' => 'Enum("Home,Office,Resturant,Train Station,Bus Stop,Landmark,Location","Home")',
         'Default'     => 'Boolean(0)',
-        'SortOrder'   => 'Int',
         
         // Extra Data
         'Raw'                 => 'Text',
@@ -76,25 +78,120 @@ class Address extends DataObject
         'Type',
     ];
     
+    //** Constructors, Getters and Setters **//
+    
+    /**
+     * Find or Create an address based on a search query.
+     * 
+     * Supplied search query will be saved as Line1 of
+     * the address, then Geo Coded as necessary.
+     * 
+     * @param string $s Address search query.
+     * @return static New or existing Address.
+     */
+    public static function fromQuery($s)
+    {
+        $address = static::get()->filter('Type', 'query')->find('Line1', $s);
+        
+        if (!$address || !$address->exists()) {
+            $address = static::create()->update(array(
+                'Type' => 'query',
+                'Line1' => $s
+            ));
+        }
+        
+        if (!$address->Latitude || !$address->Longitude) {
+            $address->geoCode();
+            $address->write();
+        }
+        
+        return $address;
+    }
+
+    /**
+     * Display Address object as a comma separated string with all parts.
+     * 
+     * Empty fields will be ignored.
+     * 
+     * @return string
+     */
+    public function __toString()
+    {
+        return implode(', ', array_filter(array(
+            $this->Line1,
+            $this->Line2,
+            $this->Suburb,
+            $this->Postcode,
+            $this->State,
+            $this->Country
+        )));
+    }
+    
+    /**
+     * Function to use when displaying Address.
+     * 
+     * Will either show the formatted Address or 'Empty {$Type} Address'.
+     * @return string.
+     */
+    public function Title()
+    {
+        return "{$this}" ?: sprintf('Empty %s Address', ucwords($this->Type));
+    }
+    
+    /**
+     * Template function: Output address string.
+     * 
+     * @uses Address::__toString();
+     * 
+     * @return string May be empty. Use Title() instead as appropriate.
+     */
+    public function forTemplate()
+    {
+        return (string) $this;
+    }
+    
+    /**
+     * Set this Address as the default and remove the Default flag from others.
+     * @returns self for further processing.
+     */
+    public function setAsDefault()
+    {
+        $member = $this->Member();
+        if ($member && $member->exists()) {
+            $addresses = $member->Addresses()->filter('Type', $this->Type)->filter('Default', true);
+            if ($addresses && $addresses->exists()) {
+                foreach ($addresses as $address) {
+                    $address->Default = false;
+                    $address->write();
+                }
+            }
+        }
+        $this->Default = true;
+        $this->write();
+        return $this;
+    }
+    
+    //** Overwritten Methods **//
+    
+    // Typically Members can only view, edit or delete their own addresses.
     public function canView($member = null)
     {
         return parent::canView($member) || ($member && $member->ID == $this->MemberID);
     }
-    
     public function canEdit($member = null)
     {
         return parent::canEdit($member) || ($member && $member->ID == $this->MemberID);
     }
-    
     public function canDelete($member = null)
     {
         return parent::canDelete($member) || ($member && $member->ID == $this->MemberID);
     }
-    
     public function canCreate($member = null, $context = array())
     {
         return parent::canCreate($member, $context);
     }
+    
+    //** Form Fields **//
     
     /**
      * Process before saving to Database
@@ -144,9 +241,37 @@ class Address extends DataObject
         }
     }
     
+    public function getCMSFields()
+    {
+        $fields = parent::getCMSFields();
+        
+        $localityText = '';
+        if (($locality = $this->Locality()) && $locality->exists()) {
+            $modelClass = str_replace('\\', '-', Locality::class);
+            $localityText = sprintf(
+                '<div class="form-group field"><label class="form__field-label">Locality</label><a href="%s" target="_blank" class="form__field-holder" style="padding:.5385rem 1.5385rem;">%s</a></div>',
+                Controller::curr()->Link("{$modelClass}/EditForm/field/{$modelClass}/item/{$locality->ID}/view"),
+                "{$locality}"
+            );
+        }
+        $localityField = LiteralField::create('Locality', $localityText);
+        $fields->replaceField('LocalityID', $localityField);
+        
+        $fields->removeByName([
+            'LinkTracking',
+            'FileTracking',
+        ]);
+        
+        return $fields;
+    }
+    
     /**
-     * Fields used when updating an address
-     * 
+     * Fields used when updating or creating an address.
+     * <pre>
+     * Default Usage:
+     * $existing_address_fields = $address->getAppFields($useLine1and2);
+     * $new_address_fields = singleton(Address::class)->getAppFields($useLine1and2);
+     * </pre>
      * @return FieldList
      */
     public function getAppFields($useLine1and2 = false)
@@ -173,9 +298,14 @@ class Address extends DataObject
     }
     
     /**
-     * Use to set all fields to required.
-     * Excludes Line2 and SpecialInstructions.
-     * 
+     * Use to set all fields to required except Line2 and SpecialInstructions.
+     * <pre>
+     * Default Usage:
+     * $required_fields = array_merge(
+     *  &nbsp; $address->getRequiredFields($useLine1and2),
+     *  &nbsp; singleton(Address::class)->getRequiredFields($useLine1and2)
+     * );
+     * </pre>
      * @param boolean $useLine1 needs to match $useLine1and2 from Address::getAppFields();
      * @return array List of primary address fields.
      */
@@ -193,41 +323,13 @@ class Address extends DataObject
             ]
         );
     }
-
-    /**
-     * Display Address object as a comma separated string with all parts.
-     * 
-     * Empty fields will be ignored.
-     * 
-     * @return string
-     */
-    public function __toString()
-    {
-        return implode(', ', array_filter(array(
-            $this->Line1,
-            $this->Line2,
-            $this->Suburb,
-            $this->Postcode,
-            $this->State,
-            $this->Country
-        )));
-    }
     
-    /**
-     * Function to use when displaying Address.
-     * 
-     * Will either show the formatted Address or 'Empty {$Type} Address'.
-     * @return string.
-     */
-    public function Title()
-    {
-        return "{$this}" ?: sprintf('Empty %s Address', ucwords($this->Type));
-    }
+    //** Geocoding Functions **//
     
     /**
      * Connect to the Google API to obtain GeoCoded data
      */
-    public function geoCode()
+    protected function geoCode()
     {
         $url = self::GOOGLE_MAP_API_URL;
         $params = 'address=' . urlencode("{$this}");
@@ -256,7 +358,7 @@ class Address extends DataObject
     /**
      * Convert IP address to a physical address where possible.
      */
-    public function geoCodeIP()
+    protected function geoCodeIP()
     {
         $url = static::IP_API_URL;
         
@@ -285,6 +387,8 @@ class Address extends DataObject
         
         return $this;
     }
+    
+    //** Distance and Location Functions **//
     
     /**
      * Find Addresses within a certain range by including the calculations in
@@ -364,7 +468,7 @@ class Address extends DataObject
      * @param float $lon2
      * @return float
      */
-    private static function getDistanceFromLatLonInKm($lat1, $lon1, $lat2, $lon2)
+    public static function getDistanceFromLatLonInKm($lat1, $lon1, $lat2, $lon2)
     {
         $R = 6371; // Radius of the earth in km
         $dLat = static::deg2rad($lat2 - $lat1);
@@ -533,65 +637,7 @@ class Address extends DataObject
         return $where;
     }
     
-    /**
-     * Template function: Output address string.
-     * 
-     * @uses Address::__toString();
-     * 
-     * @return string May be empty. Use Title() instead where appropriate.
-     */
-    public function forTemplate()
-    {
-        return (string) $this;
-    }
-    
-    /**
-     * Find or Create an address based on a search query.
-     * 
-     * Supplied search query will be saved as Line1 of
-     * the address, then Geo Coded as necessary.
-     * 
-     * @param string $s Address search query.
-     * @return static New or existing Address.
-     */
-    public static function fromQuery($s)
-    {
-        $address = static::get()->filter('Type', 'query')->find('Line1', $s);
-        
-        if (!$address || !$address->exists()) {
-            $address = static::create()->update(array(
-                'Type' => 'query',
-                'Line1' => $s
-            ));
-        }
-        
-        if (!$address->Latitude || !$address->Longitude) {
-            $address->geoCode();
-            $address->write();
-        }
-        
-        return $address;
-    }
-    
-    /**
-     * Helper function to set selected Address as default, while removing the
-     * Default flag from the others.
-     */
-    public function setAsDefault()
-    {
-        $member = $this->Member();
-        if ($member && $member->exists()) {
-            $addresses = $member->Addresses()->filter('Type', $this->Type)->filter('Default', true);
-            if ($addresses && $addresses->exists()) {
-                foreach ($addresses as $address) {
-                    $address->Default = false;
-                    $address->write();
-                }
-            }
-        }
-        $this->Default = true;
-        $this->write();
-    }
+    //** Helper Functions **//
     
     /**
      * Helper function to get the current user's IP Address.

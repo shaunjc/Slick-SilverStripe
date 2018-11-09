@@ -2,8 +2,6 @@
 
 namespace Slick\Control;
 
-use DOMDocument;
-use Exception;
 use SilverStripe\Control\HTTPResponse;
 
 class MinifiedHTTPResponse extends HTTPResponse

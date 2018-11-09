@@ -37,10 +37,17 @@ class Page extends SiteTree
     
     private static $owns = [
         'Accordion',
+        'BannerImage',
         'Icons',
         'Layouts',
         'Logos',
-        'BannerImage',
+    ];
+    
+    private static $cascade_deletes = [
+        'Accordion',
+        'Icons',
+        'Layouts',
+        'Logos',
     ];
     
     public function getCMSFields()
@@ -79,10 +86,14 @@ class Page extends SiteTree
             return $banner;
         }
         
-        // Find a homepage and get its banner image.
+        // Find a homepage and get the first image from the banners.
         $homepage = Versioned::get_one_by_stage(HomePage::class, 'Live');
-        if ($homepage && $homepage->exists() && $homepage->BannerImageID && ($banner = $homepage->BannerImage()) && $banner->exists()) {
-            return $banner;
+        if ($homepage && $homepage->exists() && ($banners = $homepage->BannerImages()) && $banners->exists()) {
+            foreach ($banners as $banner) {
+                if ($banner->BackgroundImageID && ($image = $banner->BackgroundImage()) && $image->exists()) {
+                    return $image;
+                }
+            }
         }
     }
     
@@ -97,69 +108,5 @@ class Page extends SiteTree
         return Icon::get()
             ->filter('PageID', $this->ID)
             ->filter('Classname', Icon::class);
-    }
-    
-    /**
-     * Publish sub items when page published.
-     */
-    public function onAfterWrite()
-    {
-        if (is_callable('parent::onAfterWrite')) {
-            parent::onAfterWrite();
-        }
-        // Only push items when Draft does not exist or isn't different to Live.
-        if (!$this->isModifiedOnDraft()) {
-            foreach (self::$owns as $name) {
-                if (($items = $this->$name()) && $items->exists()) {
-                    foreach ($items as $item) {
-                        // Only publish sub items that require publishing.
-                        if ($item->hasMethod('isModifiedOnDraft') && $item->isModifiedOnDraft()) {
-                            $item->publishSingle();
-                        }
-                    }
-                }
-            }
-        }
-    }
-    
-    /**
-     * Cleanup sub-items on page deletion.
-     * 
-     * May not trigger as pages will typically be archived instead.
-     */
-    public function onBeforeDelete()
-    {
-        if (is_callable('parent::onBeforeDelete')) {
-            parent::onBeforeDelete();
-        }
-        
-        foreach (self::$has_many as $name => $class) {
-            if (($items = $this->$name()) && $items->exists()) {
-                foreach ($items as $item) {
-                    $item->delete();
-                }
-            }
-        }
-    }
-    
-    /**
-     * Archive sub-items when page archived.
-     * 
-     * May not be necessary as items should not be accessible otherwise.
-     */
-    public function onBeforeArchive()
-    {
-        if (is_callable('parent::onBeforeArchive')) {
-            parent::onBeforeArchive();
-        }
-        
-        foreach (self::$has_many as $name => $class) {
-            if (singleton($class)->hasMethod('doArchive')
-            && ($items = $this->$name()) && $items->exists()) {
-                foreach ($items as $item) {
-                    $item->doArchive();
-                }
-            }
-        }
     }
 }

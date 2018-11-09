@@ -12,7 +12,10 @@ class SiteConfig extends Extension
     ];
     
     public function updateCMSFields($fields) {
-        $fields->addFieldToTab('Root.Main', TextField::create('IpStackApiKey', 'ipstack API Key')->setRightTitle('This key is necessary in order to determine the location of users. Register for an API key from ipstack.com.'));
+        $fields->addFieldsToTab('Root.Main', [
+            TextField::create('IpStackApiKey', 'ipstack API Key')
+                ->setRightTitle('This key is necessary in order to determine the location of users. Register for an API key from ipstack.com.')
+        ]);
         
         return $fields;
     }

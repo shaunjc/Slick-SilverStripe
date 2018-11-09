@@ -1,5 +1,6 @@
 ---
 Name: slickaddress
+After: slickcore
 ---
 # Add Address support to Member.
 SilverStripe\Security\Member:

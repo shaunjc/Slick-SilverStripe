@@ -2,8 +2,10 @@
 
 namespace Slick\CMS\View;
 
+// Core PHP classes.
 use DOMDocument;
 
+// SilverStripe Framework and CMS classes.
 use SilverStripe\ORM\DataObject;
 use SilverStripe\Assets\File;
 use SilverStripe\Assets\Storage\AssetStore;
@@ -11,59 +13,65 @@ use SilverStripe\Control\Director;
 use SilverStripe\Core\Injector\Injector;
 use SilverStripe\Versioned\Versioned;
 
+// Slick module classes.
 use Slick\CMS\Control\Page;
 use Slick\CMS\View\Layout;
+use Slick\Extensions\Sortable;
 
 class Icon extends DataObject
 {
-    // Table names and extensions.
-    private static $table_name = 'Slick_Page_Icon';
+    // Extensions.
     private static $extensions = [
+        Sortable::class,
         Versioned::class,
     ];
     
-    // Database columns and relationships.
+    // Database tables and columns.
+    private static $table_name = 'Slick_Page_Icon';
     private static $db = [
         'Title'       => 'Varchar(255)',
         'Link'        => 'Varchar(255)',
         'Description' => 'Text',
-        'SortOrder'   => 'Int',
     ];
+    
+    // Relationships.
     private static $has_one = [
         'Layout' => Layout::class,
-        'Page'   => Page::class,
         'Image'  => File::class,
+        'Page'   => Page::class,
     ];
     private static $owns = [
         'Image',
     ];
+    private static $owned_by = [
+        'Layout',
+        'Page',
+    ];
     
-    // Other UI references.
+    // UI config.
+    private static $default_sort  = 'SortOrder ASC';
+    private static $singular_name = 'Icon';
+    private static $plural_name   = 'Icons';
     private static $casting = [
         'ImageTag' => 'HTMLText' 
     ];
     
-    private static $singular_name = 'Icon';
-    private static $plural_name   = 'Icons';
-    
+    /**
+     * Simplify CMS fields.
+     * @return \SilverStripe\Forms\FieldList|\SilverStripe\Forms\FormField[]
+     */
     public function getCMSFields()
     {
         $fields = parent::getCMSFields();
         
-        $fields->removeByName('LayoutID');
-        $fields->removeByName('PageID');
+        $fields->removeByName([
+            'LayoutID',
+            'PageID',
+            'LinkTracking',
+            'FileTracking',
+        ]);
         
         return $fields;
-    }
-    
-    /**
-     * Manually publish Images uploaded to this DataObject when it's published.
-     */
-    public function onBeforePublish()
-    {
-        if (($image = $this->Image()) && $image->exists()) {
-            $image->publishRecursive();
-        }
     }
     
     /**

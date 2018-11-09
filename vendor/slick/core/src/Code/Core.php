@@ -2,13 +2,20 @@
 
 namespace Slick\Code;
 
+use ArrayAccess;
+use Countable;
+use Iterator;
+use JsonSerializable;
+use LogicException;
+use Serializable;
+
 /**
  * Class: Arr
  * 
  * Reusable array for accessing and manipulating arrays
  * as objects, and objects as arrays.
  */
-class Arr implements \ArrayAccess, \Iterator, \Countable
+class Arr implements ArrayAccess, Iterator, Countable, JsonSerializable
 {
     ///*** Properties ***///
     
@@ -27,9 +34,9 @@ class Arr implements \ArrayAccess, \Iterator, \Countable
      * 
      * @param array $values
      */
-    public function __construct(array $values = null)
+    public function __construct($values = null)
     {
-        $this->values($values);
+        $this->values((array) $values);
     }
     
     ///*** Getters and Setters ***///
@@ -42,7 +49,7 @@ class Arr implements \ArrayAccess, \Iterator, \Countable
      */
     public function values(array $values = null)
     {
-        if ( $values ) {
+        if ($values) {
             $this->_values = (array) $values;
         }
         return $this->_values;
@@ -51,7 +58,7 @@ class Arr implements \ArrayAccess, \Iterator, \Countable
     /**
      * Magic Getter for string conversion
      * 
-     * @uses \Slick\Arr::current(); Implemented from \Iterator.
+     * @uses Arr::current(); Implemented from Iterator.
      * 
      * @return string
      * The current array value as a string.
@@ -77,7 +84,7 @@ class Arr implements \ArrayAccess, \Iterator, \Countable
      * Obtains a value from the array as
      * though it is a property of the object
      * 
-     * @uses \Slick\Arr::offsetGet(); Implemented from \ArrayAccess.
+     * @uses Arr::offsetGet(); Implemented from ArrayAccess.
      * 
      * @param scalar $name
      * @return mixed
@@ -93,7 +100,7 @@ class Arr implements \ArrayAccess, \Iterator, \Countable
      * Sets the value to the array for the
      * specified offset.
      * 
-     * @uses \Slick\Arr::offsetSet(); Implemented from \ArrayAccess.
+     * @uses Arr::offsetSet(); Implemented from ArrayAccess.
      * 
      * @param scalar $name
      * @param mixed $value
@@ -110,7 +117,7 @@ class Arr implements \ArrayAccess, \Iterator, \Countable
      * 
      * Determines if the array key is set.
      * 
-     * @uses Implemented methods from \ArrayAccess.
+     * @uses Arr::offsetExists(); Implemented from ArrayAccess.
      * 
      * @param scalar $name
      * @return boolean
@@ -125,7 +132,7 @@ class Arr implements \ArrayAccess, \Iterator, \Countable
      * 
      * Unsets the requested key.
      * 
-     * @uses \Slick\Arr::offsetUnset(); Implemented from \ArrayAccess.
+     * @uses Arr::offsetUnset(); Implemented from ArrayAccess.
      * 
      * @param scalar $name
      */
@@ -153,12 +160,32 @@ class Arr implements \ArrayAccess, \Iterator, \Countable
     }
     
     /**
-     * Calls any array_{$func}($arr, $_) function by calling either
-     * $arr->{$func}($_) or $arr->{"array_$func"}($_).
+     * Calls any array_{$func}($arr, ...$args) function by calling either
+     * $arr->{$func}(...$args) or $arr->{"array_$func"}(...$args).
      * 
      * Inserts the $_values property as the first parameter of the function.
      * Core functions don't typically declare parameter types, so we can't use
      * reflection classes to determine which argument needs to be an array.
+     * 
+     * The result will not be an Arr instance, as not all array functions will
+     * always return an array by default, for instace `array_sum` should always
+     * return an integer.
+     * 
+     * Some array functions can manipulate the original data. Care should be
+     * taken when the data should not be changed. Example: `array_pop`.
+     * 
+     * Example:
+     * <pre>
+     * $result = $arr->array_reverse();
+     * $result === array_reverse($arr->values()); // True
+     * is_a($result, Arr::class); // False.
+     * is_array($result); // True or False.
+     * </pre>
+     * 
+     * Extend the class to create additional array methods as necessary.
+     * 
+     * @throws LogicException When method does not equate to an array function
+     * or insufficient arguments are supplied.
      * 
      * @param string $name
      * @param array $arguments
@@ -168,14 +195,27 @@ class Arr implements \ArrayAccess, \Iterator, \Countable
     {
         if (function_exists(($func = "array_$name")) || (function_exists($name) && stristr(($func = $name), 'array_') === 0)) {
             $reflection = new ReflectionFunction($func);
-            if ( $reflection->getNumberOfRequiredParameters() > count($arguments) + 1 ) {
-                // Error.
-                return null;
+            if (($required = $reflection->getNumberOfRequiredParameters()) > ($supplied = count($arguments) + 1)) {
+                // Throw a LogicException if there are insufficient arguments for the array function.
+                throw new LogicException(sprintf(
+                    'Not enough arguments to call function %1$s. '
+                    . 'Required Parameters: %2$s. '
+                    . 'Total parameters including source array: %3$s.',
+                    $func,
+                    $required,
+                    $supplied
+                ));
             }
             // Prepend $_values to the list of arguments.
             array_unshift($arguments, $this->_values);
             return call_user_func_array($func, $arguments);
         }
+        // Throw a LogicException when the function does not exist.
+        throw new LogicException(sprintf(
+            'The methods and functions %1$s:%2$s(), %2$s() and array_%2$s() do not exist or are not callable using this method.',
+            get_called_class(),
+            $name
+        ));
     }
     
     /**
@@ -201,6 +241,17 @@ class Arr implements \ArrayAccess, \Iterator, \Countable
     public function offsetIndex($key)
     {
         return array_search($key, array_keys($this->_values), true);
+    }
+    
+    /**
+     * Use implode to join the array parts into a single string.
+     * 
+     * @param string $glue
+     * @return string
+     */
+    public function implode($glue = ', ')
+    {
+        return implode($glue, $this->_values);
     }
     
     ///*** Array Access ***///
@@ -330,7 +381,7 @@ class Arr implements \ArrayAccess, \Iterator, \Countable
      * for checking to see if the current item
      * in the loop is valid.
      * 
-     * @see \Slick\Arr::key();
+     * @uses Arr::key(); Implemented from Iterator.
      * 
      * @return boolean
      */
@@ -351,13 +402,25 @@ class Arr implements \ArrayAccess, \Iterator, \Countable
      * function directly if the flag COUNT_RECURSIVE
      * should be used. Even if supplied it may not
      * recursively count any values that implement
-     * \Countable.
+     * Countable.
      * 
      * @return int
      */
     public function count($recursive = COUNT_NORMAL)
     {
         return count($this->_values, $recursive);
+    }
+    
+    ///*** JsonSerializable ***///
+    
+    /**
+     * Returns the values so it can be serialized into a JSON string.
+     * 
+     * @return array
+     */
+    public function jsonSerialize()
+    {
+        return $this->_values;
     }
     
     ///*** Transforms and Array Manipulation ***///
@@ -368,7 +431,7 @@ class Arr implements \ArrayAccess, \Iterator, \Countable
      * 
      * @param callable $callback
      * @param array $_ 
-     * @return \Slick\Arr A new Arr object with the updated array.
+     * @return Arr A new Arr object with the updated array.
      */
 	public function array_map(callable $callback, array $_ = null)
     {
@@ -376,7 +439,7 @@ class Arr implements \ArrayAccess, \Iterator, \Countable
         // Add current array to the list of arguments.
 		array_splice($arguments, 1, 0, array($this->_values));
         // Original Arr or Source object will remain unchanged.
-		return new Arr(call_user_func_array('array_map', $arguments));
+		return new static(call_user_func_array('array_map', $arguments));
 	}
     
     /**
@@ -388,7 +451,7 @@ class Arr implements \ArrayAccess, \Iterator, \Countable
      * 
      * @param callable $callback
      * @param int $flag 
-     * @return \Slick\Arr A new Arr object with the updated array.
+     * @return Arr A new Arr object with the updated array.
      */
     public function array_filter(callable $callback = null, $flag = 0)
     {
@@ -396,7 +459,7 @@ class Arr implements \ArrayAccess, \Iterator, \Countable
         // Prepend current array to the list of arguments.
 		array_unshift($arguments, $this->_values);
         // Original Arr or Source object will remain unchanged.
-        return new Arr(call_user_func_array('array_filter', $arguments));
+        return new static(call_user_func_array('array_filter', $arguments));
     }
     
     /**
@@ -407,7 +470,7 @@ class Arr implements \ArrayAccess, \Iterator, \Countable
      */
     public function rotate($distance = 1)
     {
-        return new Arr(static::array_rotate($this->_values, $distance));
+        return new static(static::array_rotate($this->_values, $distance));
     }
     
     /**
@@ -420,7 +483,7 @@ class Arr implements \ArrayAccess, \Iterator, \Countable
      */
     public function rotate_key($distance = 1)
     {
-        return new Arr(static::array_rotate_key($this->_values, $distance));
+        return new static(static::array_rotate_key($this->_values, $distance));
     }
     
     /**
@@ -433,7 +496,7 @@ class Arr implements \ArrayAccess, \Iterator, \Countable
      */
     public function rotate_value($distance = 1)
     {
-        return new Arr(static::array_rotate_value($this->_values, $distance));
+        return new static(static::array_rotate_value($this->_values, $distance));
     }
     
     /**
@@ -446,7 +509,7 @@ class Arr implements \ArrayAccess, \Iterator, \Countable
      */
     public function rotate_assoc($distance = 1)
     {
-        return new Arr(static::array_rotate_assoc($this->_values, $distance));
+        return new static(static::array_rotate_assoc($this->_values, $distance));
     }
     
     ///*** Static library functions ***///
@@ -538,12 +601,12 @@ class Arr implements \ArrayAccess, \Iterator, \Countable
  * it also allows methods to be called without assigning the object first.
  * Example:
  * <pre>
- * $arr1 = new \Slick\Arr($array);
- * $arr->search($search) === \Slick\Arr($array)->search($search); // True
+ * $arr1 = new \Slick\Code\Arr($array);
+ * $arr->search($search) === \Slick\Code\Arr($array)->search($search); // True
  * </pre>
  * 
  * @param array $values
- * @return \Slick\Arr
+ * @return Arr
  */
 function Arr($values)
 {
@@ -558,7 +621,7 @@ function Arr($values)
  * adds methods and functions for obtaining a single
  * value.
  */
-abstract class Source extends Arr implements \Serializable
+abstract class Source extends Arr implements Serializable
 {
     ///*** Properties ***///
     
@@ -595,6 +658,8 @@ abstract class Source extends Arr implements \Serializable
     /**
      * Magic Constructor: Apply value to $_index if supplied in correct format
      * 
+     * @throws LogicException When the values array is undefined.
+     * 
      * @param scalar $index
      */
     public function __construct($index = null)
@@ -605,7 +670,10 @@ abstract class Source extends Arr implements \Serializable
         }
         // Ensure any class extensions have the $_values property defined as a non-empty array.
         if (!$this->_values || !is_array($this->_values)) {
-            throw new \LogicException('Class ' . get_called_class() . ' needs to define either the protected abstract property $_values or the static variable $values as a non-empty array.');
+            throw new LogicException(sprintf(
+                'Class %s needs to define either the protected abstract property $_values or the static variable $values as a non-empty array.',
+                get_called_class()
+            ));
         }
         
         $this->index($index);
@@ -639,6 +707,8 @@ abstract class Source extends Arr implements \Serializable
     /**
      * Sets the index and retuns it for further processing.
      * 
+     * @uses Arr::offsetIndex(); Implemented from ArrayAccess.
+     * 
      * @param scalar $key
      * @return scalar
      */
@@ -653,7 +723,8 @@ abstract class Source extends Arr implements \Serializable
     /**
      * Magic Getter for string conversion
      * 
-     * @uses \Slick\ArrayAccess:: Description
+     * @uses Arr::offsetGet()|Arr::offsetIndex(); Implemented from ArrayAccess.
+     * @uses Arr::current(); Implemented from Iterator.
      * 
      * @return string
      * The value associated with the current index
@@ -785,7 +856,7 @@ abstract class Source extends Arr implements \Serializable
      * Disabled by default.
      * 
      * @param int $distance Ignored.
-     * @return \Slick\Source Return self for further processing.
+     * @return Source Return self for further processing.
      */
     public function rotate($distance = 1)
     {

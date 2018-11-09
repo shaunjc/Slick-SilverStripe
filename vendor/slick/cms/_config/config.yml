@@ -1,5 +1,6 @@
 ---
 Name: slickcms
+After: slickcore
 ---
 # Add SVG Support
 SilverStripe\Assets\File:
@@ -15,3 +16,6 @@ SilverStripe\Assets\Image:
 SilverStripe\SiteConfig\SiteConfig:
   extensions:
     - Slick\CMS\Extensions\SiteConfig
+SilverStripe\Control\Controller:
+  extensions:
+    - Slick\CMS\Extensions\Controller

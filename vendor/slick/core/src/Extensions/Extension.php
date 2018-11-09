@@ -3,7 +3,7 @@
 namespace Slick\Extensions;
 
 /**
- * Expand upon the standard DataExtension class.
+ * Expands upon the standard DataExtension class.
  * 
  * Enables the ability to refer to the owner's properties and methods by calling
  * or accessing them directly from the extension class.

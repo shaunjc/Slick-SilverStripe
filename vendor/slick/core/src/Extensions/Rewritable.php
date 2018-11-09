@@ -2,6 +2,7 @@
 
 namespace Slick\Extensions;
 
+// SilverStripe framework and CMS classes.
 use SilverStripe\Forms\FieldList;
 use SilverStripe\Forms\TextField;
 use SilverStripe\ORM\DataObject;
@@ -9,6 +10,7 @@ use SilverStripe\ORM\Hierarchy\Hierarchy;
 use SilverStripe\Versioned\Versioned;
 use SilverStripe\View\Parsers\URLSegmentFilter;
 
+// Slick classes
 use Slick\Extensions\DataExtension;
 
 /**
@@ -98,7 +100,9 @@ class Rewritable extends DataExtension
         // Append to the Main tab or form when the field is newly created. Do not reposition otherwise.
         if ($create) {
             if ($fields->fieldByName('Root.Main')) {
-                $fields->addFieldToTab('Root.Main', $urlSegment);
+                $fields->addFieldsToTab('Root.Main', [
+                    $urlSegment,
+                ]);
             }
             else
             {
@@ -116,10 +120,10 @@ class Rewritable extends DataExtension
      * 
      * @return int|string
      */
-    public function URLPath($hierarchical = true)
+    public function URLPath($hierarchical = true, $databaseField = 'URLSegment')
     {
         // Standard path
-        $path = $this->owner->URLSegment ? $this->owner->URLSegment : $this->owner->ID;
+        $path = $this->owner->$databaseField ? $this->owner->$databaseField : $this->owner->ID;
         // Current class is hierarchical and its parent is also rewritable.
         if ($hierarchical && $this->owner->hasExtension(Hierarchy::class)
             && ($parent = $this->owner->Parent()) && $parent->exists()
@@ -158,17 +162,21 @@ class Rewritable extends DataExtension
      * @return DataObject singleton if no path specified,
      * DataObject if found from path, or null if not found.
      */
-    public static function get($classname, $path = '')
+    public static function get($classname, $path = '', $databaseField = 'URLSegment')
     {
         $singleton = singleton($classname);
         if ($singleton) {
             if ($singleton->hasMethod('fromPath') && $path) {
                 // Is extended by a Rewritable class
-                return $singleton->fromPath($path);
+                return $singleton->fromPath($path, $databaseField);
             }
-            return $singleton->hasExtension(Versioned::class)
-                ? Versioned::get_by_stage($classname, Versioned::get_stage())->byID($path)
-                : DataObject::get($classname)->byID($path);
+            $objects = $singleton->hasExtension(Versioned::class)
+                ? Versioned::get_by_stage($classname, Versioned::get_stage())
+                : DataObject::get($classname);
+            if ($singleton->hasDatabaseField($databaseField) && !($item = $objects->find($databaseField, $path)) && ! $item->exists()) {
+                $item = $objects->byID($path);
+            }
+            return $item;
         }
         return $singleton;
     }
@@ -182,7 +190,7 @@ class Rewritable extends DataExtension
      * @param string|int $path URLSegment or ID
      * @return \SilverStripe\ORM\DataObject|null
      */
-    public function fromPath($path)
+    public function fromPath($path, $databaseField = 'URLSegment')
     {
         // Prepare a DataList based on whether the class extends Versioned
         $objects = $this->owner->hasExtension(Versioned::class)
@@ -193,8 +201,8 @@ class Rewritable extends DataExtension
             return $objects->byID($id);
         }
         // Do not filter by URLSegment unless the class has it as a field.
-        if ($this->owner->hasDatabaseField('URLSegment')) {
-            return $objects->find('URLSegment', $path);
+        if ($this->owner->hasDatabaseField($databaseField)) {
+            return $objects->find($databaseField, $path);
         }
         // Unknown path variable.
     }

@@ -26,15 +26,37 @@ class ErrorHandler extends Extension
      */
     public function onBeforeHTTPError($errorCode = 404, $request = null, $errorMessage = '')
     {
-        // Get one error page - they all should work as fine as each other
-        $page = Versioned::get_one_by_stage(ErrorPage::class, Versioned::get_stage());
+        // Get all error pages
+        $pages = Versioned::get_by_stage(ErrorPage::class, Versioned::get_stage());
+        if (!$pages || !$pages->exists()) {
+            return;
+        }
+        // Find one with a matching error code
+        $page = $pages->find('ErrorCode', $errorCode);
+        if (!$page || !$page->exists()) {
+            // Or at least a similar error code.
+            $backup = floor($errorCode / 100);
+            switch ($backup) {
+                case 4:
+                    $backup = 404;
+                    break;
+                case 5:
+                    $backup = 500;
+                    break;
+            }
+            $page = $pages->find('ErrorCode', $backup);
+        }
+        if (!$page || !$page->exists()) {
+            // Fall back to any error page.
+            $page = $pages->first();
+        }
         if ($page && $page->exists()) {
             // Ensure theme is loaded
             Config::modify();
             Config::inst()->set(SSViewer::class, 'theme_enabled', true);
             Config::inst()->set(SSViewer::class, 'theme', SiteConfig::current_site_config()->Theme);
             
-            // Set response code and prevent Breadcrumbs
+            // Set response message and prevent Breadcrumbs
             $page->Breadcrumbs = '';
             if (is_string($errorMessage) || is_a($errorMessage, DBField::class)) {
                 $page->Content = $errorMessage;
