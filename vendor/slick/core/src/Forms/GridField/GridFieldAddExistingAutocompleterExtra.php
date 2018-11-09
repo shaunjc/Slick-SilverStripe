@@ -60,13 +60,15 @@ class GridFieldAddExistingAutocompleterExtra extends GridFieldAddExistingAutocom
         if ($gridField->getList()->hasMethod('getExtraFields') && ($extraFields = $gridField->getList()->getExtraFields())) {
             foreach ($extraFields as $fieldName => $fieldSpec) {
                 try {
+                    $dbObject = Injector::inst()->create($fieldSpec, $fieldName);
                     // Use Object::create_from_string to determine if this field is appropriate for a plain textbox.
-                    if (in_array(Injector::inst()->create($fieldSpec, $fieldName)->class, self::$allowed_data_types)) {
+                    if (in_array(get_class($dbObject), self::$allowed_data_types)) {
                         // Add directly to field with all attributes and classes set.
                         $forTemplate->Fields->push(
-                            TextField::create('extraFields[' . Convert::raw2sql($fieldName) . ']', '')
+                            $dbObject->scaffoldFormField('')
+                                ->setName('extraFields[' . Convert::raw2sql($fieldName) . ']')
                                 ->setAttribute('placeholder', Convert::raw2htmlatt($fieldName))
-                                ->addExtraClass('no-change-track')
+                                ->addExtraClass('relation-extradata no-change-track')
                         );
                     }
                 }
@@ -116,7 +118,7 @@ class GridFieldAddExistingAutocompleterExtra extends GridFieldAddExistingAutocom
             $forTemplate->Fields->setForm($form);
         }
 
-        $template = SSViewer::get_templates_by_class($this, '', __CLASS__);
+        $template = SSViewer::get_templates_by_class($this, '', GridFieldAddExistingAutocompleter::class);
         return array(
             $this->targetFragment => $forTemplate->renderWith($template)
         );
