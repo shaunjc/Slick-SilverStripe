@@ -94,10 +94,10 @@ class Address extends DataObject
         $address = static::get()->filter('Type', 'query')->find('Line1', $s);
         
         if (!$address || !$address->exists()) {
-            $address = static::create()->update(array(
+            $address = static::create()->update([
                 'Type' => 'query',
                 'Line1' => $s
-            ));
+            ]);
         }
         
         if (!$address->Latitude || !$address->Longitude) {
@@ -117,14 +117,14 @@ class Address extends DataObject
      */
     public function __toString()
     {
-        return implode(', ', array_filter(array(
+        return implode(', ', array_filter([
             $this->Line1,
             $this->Line2,
             $this->Suburb,
             $this->Postcode,
             $this->State,
             $this->Country
-        )));
+        ]));
     }
     
     /**
@@ -540,7 +540,7 @@ class Address extends DataObject
         // Ensure latitude is not greater than 180˚ (North pole)
         $max = min($latitude + $latdiff, 180);
         
-        return array($min, $max);
+        return [$min, $max];
     }
     
     /**
@@ -601,7 +601,7 @@ class Address extends DataObject
             $max -= 360;
         }
         
-        return array($min, $max);
+        return [$min, $max];
     }
     
     /**

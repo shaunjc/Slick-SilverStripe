@@ -99,7 +99,7 @@ class Rewritable extends DataExtension
         } else
         // Append to the Main tab or form when the field is newly created. Do not reposition otherwise.
         if ($create) {
-            if ($fields->fieldByName('Root.Main')) {
+            if ($fields->hasTabSet()) {
                 $fields->addFieldsToTab('Root.Main', [
                     $urlSegment,
                 ]);

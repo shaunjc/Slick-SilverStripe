@@ -2,6 +2,7 @@
 
 namespace Slick\Forms\GridField;
 
+// Core SilverStripe framework and CMS classes.
 use SilverStripe\Core\Injector\Injector;
 use SilverStripe\Forms\Form;
 use SilverStripe\Forms\GridField\GridFieldDetailForm;
@@ -9,23 +10,26 @@ use SilverStripe\Forms\GridField\GridFieldDetailForm_ItemRequest;
 use SilverStripe\ORM\DataObject;
 
 /**
- * Automatically add in ManyMany extra fields when editing a relational object.
- * 
- * You can either replace the default GridFieldDetailForm with a new
- * GridFieldDetailFormExtra, or update protected $itemRequestClass
- * as illustrated in the default usage below.
- * 
- * Default Usage:
- * $gridField
- *  ->getConfig()
- *  ->getComponentByType('GridFieldDetailForm')
- *  ->setItemRequestClass('GridFieldDetailFormExtra_ItemRequest');
+ * Provides view and edit forms at GridField-specific URLs.
+ *
+ * Automatically uses GridFieldDetailFormExtra_ItemRequest to generate form
+ * fields for each `$many_many_extraFields`.
  */
 class GridFieldDetailFormExtra extends GridFieldDetailForm
 {
     
 }
 
+/**
+ * Automatically add in ManyMany extra fields when editing a relational object.
+ * 
+ * Can be used by either replacing the default GridFieldConfig_RelationEditor
+ * config, replacing the default GridFieldDetailForm component or setting the
+ * `$itemRequestClass` for the current GridFieldDetailForm component.
+ * 
+ * GridFieldConfig, GridFieldDetailForm and GridFieldDetailForm_ItemRequest are
+ * all injectable.
+ */
 class GridFieldDetailFormExtra_ItemRequest extends GridFieldDetailForm_ItemRequest
 {
     /** @var array **/
@@ -63,10 +67,14 @@ class GridFieldDetailFormExtra_ItemRequest extends GridFieldDetailForm_ItemReque
                     $fieldName,
                     $foreignObject && $foreignObject->exists() && $foreignObject->Title ? $foreignObject->Title : "$key:$id"
                 );
-                $fields->addFieldsToTab( 'Root.Main', [
-                    // Create each field using standard scaffolding techniques.
-                    Injector::inst()->create($fieldSpec, "ManyMany[$fieldName]")->scaffoldFormField($title),
-                ]);
+                // Create each field using standard scaffolding techniques.
+                $field = Injector::inst()->create($fieldSpec, "ManyMany[{$fieldName}]")->scaffoldFormField($title);
+                if ($fields->hasTabSet()) {
+                    $fields->addFieldToTab('Root.Main', $field);
+                }
+                else {
+                    $fields->add($field);
+                }
             }
             
             // Prevent NumericField localisation issues by converting all numeric values to strings.

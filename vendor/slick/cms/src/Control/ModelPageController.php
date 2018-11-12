@@ -45,7 +45,7 @@ class ModelPageController extends PageController
     {
         parent::init();
         
-        if (in_array($this->action, array('edit', 'view', 'Form')) && (!$this->CurrentObject() || !$this->CurrentObject()->exists())) {
+        if (in_array($this->action, ['edit', 'Form']) && (!$this->CurrentObject() || !$this->CurrentObject()->exists())) {
             return $this->httpError(404, $this->NoObjectFoundMessage ?: 'No object found with that id.');
         }
     }
@@ -62,9 +62,9 @@ class ModelPageController extends PageController
      */
     public function index()
     {
-        return array(
+        return [
             
-        );
+        ];
     }
     
     /**
@@ -77,9 +77,9 @@ class ModelPageController extends PageController
      */
     public function edit()
     {
-        return array(
+        return [
             
-        );
+        ];
     }
     
     /** Form Actions **/

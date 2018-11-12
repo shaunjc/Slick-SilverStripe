@@ -54,9 +54,9 @@ class Page extends SiteTree
     {
         $fields = parent::getCMSFields();
         
-        $fields->addFieldsToTab('Root.Main', new FieldList(array(
+        $fields->addFieldsToTab('Root.Main', FieldList::create([
             UploadField::create('BannerImage'),
-        )), 'Content');
+        ]), 'Content');
         
         return $fields;
     }

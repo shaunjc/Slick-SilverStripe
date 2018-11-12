@@ -1,0 +1,15 @@
+{
+    "name": "slick/cms",
+    "type": "silverstripe/vendormodule",
+    "description": "",
+    "homepage": "https://slickdesign.com.au/",
+    "license": "",
+    "require": {
+        "slick/core": "^1.0",
+        "silverstripe/recipe-plugin": "^1.2",
+        "silverstripe/recipe-core": "^4.0",
+        "silverstripe/recipe-cms": "^1.0"
+    },
+    "prefer-stable": true,
+    "minimum-stability": "dev"
+}

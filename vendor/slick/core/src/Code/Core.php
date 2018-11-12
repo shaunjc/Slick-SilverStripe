@@ -25,7 +25,7 @@ class Arr implements ArrayAccess, Iterator, Countable, JsonSerializable
      * 
      * @var array [mixed]
      */
-    protected $_values = array();
+    protected $_values = [];
     
     ///*** Constructor ***///
     
@@ -437,7 +437,7 @@ class Arr implements ArrayAccess, Iterator, Countable, JsonSerializable
     {
 		$arguments = func_get_args();
         // Add current array to the list of arguments.
-		array_splice($arguments, 1, 0, array($this->_values));
+		array_splice($arguments, 1, 0, [$this->_values]);
         // Original Arr or Source object will remain unchanged.
 		return new static(call_user_func_array('array_map', $arguments));
 	}

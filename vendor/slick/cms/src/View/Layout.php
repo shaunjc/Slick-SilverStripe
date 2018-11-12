@@ -63,6 +63,11 @@ class Layout extends DataObject
         'EmbedOnly' => 'HTMLText',
     ];
     
+    private static $summary_fields = [
+        'Title'    => 'Title',
+        'Template' => 'template',
+    ];
+    
     /**
      * Update GridField to a RecordEditor instead of RelationEditor.
      * 
@@ -121,7 +126,7 @@ class Layout extends DataObject
      */
     public function HasImage()
     {
-        return in_array($this->Template, array('Content+Image', 'Image+Content')) && $this->Image() && $this->Image()->exists();
+        return in_array($this->Template, ['Content+Image', 'Image+Content']) && $this->Image() && $this->Image()->exists();
     }
     
     /**
@@ -144,7 +149,7 @@ class Layout extends DataObject
      */
     public function HasIcons()
     {
-        return in_array($this->Template, array('Icons')) && $this->Icons() && $this->Icons()->exists();
+        return in_array($this->Template, ['Icons']) && $this->Icons() && $this->Icons()->exists();
     }
     
     /**

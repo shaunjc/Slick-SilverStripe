@@ -2,11 +2,8 @@
 
 namespace Slick\CMS\Control;
 
-use SilverStripe\Assets\File;
-use SilverStripe\Forms\FieldList;
 use SilverStripe\Forms\GridField\GridField;
 use SilverStripe\Forms\GridField\GridFieldConfig_RecordEditor;
-use SilverStripe\Forms\GridField\GridFieldDataColumns;
 
 use Slick\CMS\Control\Page;
 use Slick\CMS\View\Banner;
@@ -46,16 +43,10 @@ class HomePage extends Page
                 'Layouts',
                 'Layout Sections',
                 $this->Layouts(),
-                $layout_config = GridFieldConfig_RecordEditor::create()
+                GridFieldConfig_RecordEditor::create()
                     ->addComponent(new GridFieldSortableRows('SortOrder'))
             ),
         ], 'Metadata');
-        
-        $layout_config->getComponentByType(GridFieldDataColumns::class)
-            ->setDisplayFields(array(
-                'Title'    => 'Title',
-                'Template' => 'Template',
-            ));
         
         $fields->removeByName('Content');
         $fields->removeByName('BannerImage');
